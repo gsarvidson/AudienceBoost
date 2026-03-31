@@ -101,6 +101,14 @@
   .chart-wrap { position: relative; height: 340px; }
   .pie-wrap   { position: relative; height: 260px; }
 
+  /* Tabs */
+  .tab-bar { display: flex; border-bottom: 2px solid var(--tm-border); margin-bottom: 20px; background: #fff; border-radius: 4px 4px 0 0; overflow: hidden; }
+  .tab-btn { padding: 12px 24px; font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; border: none; background: transparent; color: var(--tm-muted); border-bottom: 3px solid transparent; margin-bottom: -2px; transition: color 0.15s, border-color 0.15s; }
+  .tab-btn:hover { color: var(--tm-navy); }
+  .tab-btn.active { color: var(--tm-red); border-bottom-color: var(--tm-red); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
   /* Proxy notice */
   .proxy-notice { background: #fff8e1; border: 1px solid #f5c518; border-left: 4px solid #f5c518; border-radius: 3px; padding: 12px 16px; margin-bottom: 16px; }
 </style>
@@ -124,6 +132,15 @@
     <h1 class="text-xl font-800 text-gray-900" style="font-weight:800;">Campaign Dashboard</h1>
     <p class="text-sm text-gray-500 mt-0.5">View order statistics, targeting and daily performance</p>
   </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-single" onclick="switchTab('single')">Single Campaign</button>
+    <button class="tab-btn" id="tab-total" onclick="switchTab('total')">Total Campaigns</button>
+  </div>
+
+  <!-- Single Campaign panel -->
+  <div id="panel-single" class="tab-panel active">
 
   <!-- Proxy notice -->
   <div class="proxy-notice flex flex-col sm:flex-row sm:items-center gap-3">
@@ -249,6 +266,18 @@
     <div id="previewBody" class="section-body p-4 space-y-3" style="max-height:1000px;"></div>
   </div>
 
+  </div><!-- /panel-single -->
+
+  <!-- Total Campaigns panel -->
+  <div id="panel-total" class="tab-panel">
+    <div class="section-wrap">
+      <div class="section-hd" style="cursor:default;">
+        <h2>Total Campaigns</h2>
+      </div>
+      <div class="p-8 text-center text-sm text-gray-400 italic">Coming soon.</div>
+    </div>
+  </div>
+
 </div><!-- /container -->
 
 <script>
@@ -269,6 +298,13 @@
     var c = hdr.querySelector(".chevron");
     var collapsed = b.classList.toggle("collapsed");
     if(c) c.classList.toggle("collapsed", collapsed);
+  };
+
+  window.switchTab = function(name) {
+    ["single","total"].forEach(function(t) {
+      document.getElementById("tab-"+t).classList.toggle("active", t===name);
+      document.getElementById("panel-"+t).classList.toggle("active", t===name);
+    });
   };
 
   function callApi(path) {
