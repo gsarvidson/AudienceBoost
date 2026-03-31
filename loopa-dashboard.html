@@ -270,13 +270,61 @@
 
   <!-- Total Campaigns panel -->
   <div id="panel-total" class="tab-panel">
-    <div class="section-wrap">
-      <div class="section-hd" style="cursor:default;">
-        <h2>Total Campaigns</h2>
+
+    <!-- Proxy notice (duplicated for this tab) -->
+    <div class="proxy-notice flex flex-col sm:flex-row sm:items-center gap-3">
+      <div class="flex-grow">
+        <p class="font-bold text-sm" style="color:#7a5800;">⚠ Activate CORS Proxy first</p>
+        <p class="text-sm mt-0.5" style="color:#7a5800;">Enable cors-anywhere once per browser session before fetching data.</p>
       </div>
-      <div class="p-8 text-center text-sm text-gray-400 italic">Coming soon.</div>
+      <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank"
+         class="shrink-0 inline-block px-4 py-2 text-sm font-bold rounded-sm text-white"
+         style="background:var(--tm-navy);">↗ Activate Proxy</a>
     </div>
-  </div>
+
+    <!-- Date range picker -->
+    <div class="section-wrap mb-5">
+      <div class="section-hd" style="cursor:default;">
+        <h2>Date Range</h2>
+      </div>
+      <div class="p-4 flex flex-col sm:flex-row gap-3 items-end">
+        <div class="flex-1">
+          <label class="block text-xs font-700 text-gray-500 uppercase tracking-wider mb-1" style="font-weight:700;">Start Date</label>
+          <input id="totalStartDate" type="date" class="tm-input">
+        </div>
+        <div class="flex-1">
+          <label class="block text-xs font-700 text-gray-500 uppercase tracking-wider mb-1" style="font-weight:700;">End Date</label>
+          <input id="totalEndDate" type="date" class="tm-input">
+        </div>
+        <button id="totalFetchBtn" class="tm-btn flex items-center gap-2">
+          <span id="totalBtnTxt">Fetch Campaigns</span>
+          <span id="totalBtnSpin" class="hidden"><div class="spinner" style="border-top-color:var(--tm-navy);width:14px;height:14px;border-width:2px;"></div></span>
+        </button>
+      </div>
+      <div id="totalStatusMsg" class="hidden mx-4 mb-4 status-bar"></div>
+    </div>
+
+    <!-- Aggregate KPIs -->
+    <div id="totalKpiRow" class="hidden grid grid-cols-2 md:grid-cols-4 gap-3 mb-5"></div>
+
+    <!-- Campaigns table -->
+    <div id="totalTableSection" class="section-wrap hidden">
+      <div class="section-hd" style="cursor:default; justify-content:space-between;">
+        <h2>All Campaigns</h2>
+        <div class="flex items-center gap-3">
+          <span id="totalPageInfo" class="text-xs text-gray-400 font-normal"></span>
+          <div id="totalPagination" class="hidden flex gap-2">
+            <button id="totalPrevBtn" class="tm-btn" style="padding:5px 14px;font-size:0.78rem;">← Prev</button>
+            <button id="totalNextBtn" class="tm-btn" style="padding:5px 14px;font-size:0.78rem;">Next →</button>
+          </div>
+        </div>
+      </div>
+      <div id="totalTableContainer" class="section-body overflow-x-auto" style="max-height:2000px;">
+        <p class="p-6 text-sm text-gray-400 italic text-center">Select a date range and fetch.</p>
+      </div>
+    </div>
+
+  </div><!-- /panel-total -->
 
 </div><!-- /container -->
 
@@ -642,6 +690,168 @@
 
   function showStatus(msg, type, isHtml) {
     var el=document.getElementById("statusMsg");
+    if(isHtml) el.innerHTML=msg; else el.textContent=msg;
+    el.className="status-bar "+(type==="error"?"status-error":type==="success"?"status-success":"status-info");
+    el.classList.remove("hidden");
+    if(type!=="error") setTimeout(function(){ el.classList.add("hidden"); },4000);
+  }
+
+  /* ══════════════════════════════════════════
+     TOTAL CAMPAIGNS TAB
+  ══════════════════════════════════════════ */
+
+  // Set default date range to current month
+  (function() {
+    var now = new Date();
+    var y = now.getFullYear();
+    var m = String(now.getMonth()+1).padStart(2,"0");
+    var d = String(now.getDate()).padStart(2,"0");
+    var firstDay = y+"-"+m+"-01";
+    var today    = y+"-"+m+"-"+d;
+    document.getElementById("totalStartDate").value = firstDay;
+    document.getElementById("totalEndDate").value   = today;
+  }());
+
+  var totalAllOrders = [];
+  var totalCurrentPage = 1;
+  var totalMoreRecords = false;
+  var totalSortCol = "TotalImpressions";
+  var totalSortAsc = false;
+
+  document.getElementById("totalFetchBtn").addEventListener("click", function() { fetchTotalPage(1); });
+  document.getElementById("totalPrevBtn").addEventListener("click", function() { if(totalCurrentPage>1) fetchTotalPage(totalCurrentPage-1); });
+  document.getElementById("totalNextBtn").addEventListener("click", function() { fetchTotalPage(totalCurrentPage+1); });
+
+  function fetchTotalPage(page) {
+    var startVal = document.getElementById("totalStartDate").value;
+    var endVal   = document.getElementById("totalEndDate").value;
+    if(!startVal){ showTotalStatus("Please select a start date.","error"); return; }
+
+    totalCurrentPage = page;
+    setTotalBusy(true);
+    showTotalStatus("Fetching page "+page+"…","info");
+
+    var path = "/stats/"+PUB_ID+"/orders?page="+page;
+    if(startVal) path += "&startDate="+encodeURIComponent(startVal+"T00:00:00");
+    if(endVal)   path += "&endDate="+encodeURIComponent(endVal+"T23:59:59");
+
+    callApi(path).then(function(res) {
+      var rows = (res&&res.Data) ? res.Data : [];
+      totalMoreRecords = !!(res&&res.MoreRecords);
+      if(page===1) totalAllOrders = rows;
+      else totalAllOrders = totalAllOrders.concat(rows);
+
+      renderTotalKPIs(totalAllOrders);
+      renderTotalTable(totalAllOrders);
+
+      // update pagination
+      var pageInfo = document.getElementById("totalPageInfo");
+      pageInfo.textContent = totalAllOrders.length+" campaign"+(totalAllOrders.length!==1?"s":"")+(totalMoreRecords?" (more available)":"");
+      var pag = document.getElementById("totalPagination");
+      if(totalCurrentPage>1||totalMoreRecords) pag.classList.remove("hidden"); else pag.classList.add("hidden");
+      document.getElementById("totalPrevBtn").disabled = totalCurrentPage<=1;
+      document.getElementById("totalNextBtn").disabled = !totalMoreRecords;
+
+      showTotalStatus("Loaded "+totalAllOrders.length+" campaigns.","success");
+    }).catch(function(err) {
+      if(err.message==="PROXY_DENIED")
+        showTotalStatus("Proxy access required. <a href='https://cors-anywhere.herokuapp.com/corsdemo' target='_blank' class='underline font-bold'>Activate here</a>, then retry.","error",true);
+      else showTotalStatus("Error: "+err.message,"error");
+    }).then(function(){ setTotalBusy(false); });
+  }
+
+  function renderTotalKPIs(rows) {
+    var totImp=0, totClicks=0, totCost=0, totConv=0;
+    rows.forEach(function(r){
+      totImp    += r.TotalImpressions||0;
+      totClicks += r.Clicks||0;
+      totCost   += parseFloat(r.Cost||0);
+      totConv   += r.TotalConversions||0;
+    });
+    var ctr = totImp>0 ? (totClicks/totImp*100).toFixed(2) : "0.00";
+    var kpis = [
+      {l:"Campaigns",         v: rows.length.toLocaleString()},
+      {l:"Total Impressions", v: totImp.toLocaleString()},
+      {l:"Total Clicks",      v: totClicks.toLocaleString()},
+      {l:"CTR",               v: ctr+"%"},
+      {l:"Total Conversions", v: totConv.toLocaleString()},
+      {l:"Total Spend",       v: "$"+totCost.toFixed(2)}
+    ];
+    var html="";
+    kpis.forEach(function(k){ html+="<div class='kpi-card'><p class='kpi-label'>"+k.l+"</p><p class='kpi-val'>"+k.v+"</p></div>"; });
+    var row = document.getElementById("totalKpiRow");
+    row.className = "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5";
+    row.innerHTML = html;
+    row.classList.remove("hidden");
+  }
+
+  function renderTotalTable(rows) {
+    var sec = document.getElementById("totalTableSection");
+    var el  = document.getElementById("totalTableContainer");
+    sec.classList.remove("hidden");
+    if(!rows||!rows.length){ el.innerHTML="<p class='p-6 text-center text-sm text-gray-400'>No campaigns found.</p>"; return; }
+
+    // sort
+    var sorted = rows.slice().sort(function(a,b){
+      var av = a[totalSortCol]||0, bv = b[totalSortCol]||0;
+      if(typeof av==="string") av=av.toLowerCase(), bv=(b[totalSortCol]||"").toLowerCase();
+      return totalSortAsc ? (av>bv?1:-1) : (av<bv?1:-1);
+    });
+
+    var cols = [
+      {k:"PublisherOrderId", l:"Order ID"},
+      {k:"StartDate",        l:"Start"},
+      {k:"EndDate",          l:"End"},
+      {k:"TotalImpressions", l:"Impressions"},
+      {k:"Clicks",           l:"Clicks"},
+      {k:"CTRPercentage",    l:"CTR"},
+      {k:"TotalConversions", l:"Conversions"},
+      {k:"VideoViews",       l:"Video Views"},
+      {k:"Cost",             l:"Spend"},
+      {k:"Percentage",       l:"% Budget"}
+    ];
+
+    var html = "<table><thead><tr>";
+    cols.forEach(function(c){
+      var arrow = (totalSortCol===c.k) ? (totalSortAsc?" ↑":" ↓") : "";
+      html += "<th style='cursor:pointer;user-select:none;' onclick='sortTotalTable(\""+c.k+"\")'>"+c.l+arrow+"</th>";
+    });
+    html += "</tr></thead><tbody>";
+
+    sorted.forEach(function(r){
+      html += "<tr>";
+      cols.forEach(function(c){
+        var v = r[c.k];
+        var disp;
+        if(v==null||v==="") { disp="—"; }
+        else if(c.k==="StartDate"||c.k==="EndDate") { disp=fmtDate(v,true); }
+        else if(c.k==="Cost") { disp="$"+parseFloat(v).toFixed(2); }
+        else if(c.k==="CTRPercentage") { disp=parseFloat(v||0).toFixed(2)+"%"; }
+        else if(c.k==="Percentage") { disp=parseFloat(v||0).toFixed(0)+"%"; }
+        else if(c.k==="PublisherOrderId") { disp="<span style='font-weight:700;color:var(--tm-navy);font-size:0.75rem;'>"+v+"</span>"; }
+        else { disp=v.toLocaleString?v.toLocaleString():v; }
+        html += "<td>"+disp+"</td>";
+      });
+      html += "</tr>";
+    });
+    html += "</tbody></table>";
+    el.innerHTML = html;
+  }
+
+  window.sortTotalTable = function(col) {
+    if(totalSortCol===col) totalSortAsc=!totalSortAsc;
+    else { totalSortCol=col; totalSortAsc=false; }
+    renderTotalTable(totalAllOrders);
+  };
+
+  function setTotalBusy(on) {
+    document.getElementById("totalFetchBtn").disabled = on;
+    document.getElementById("totalBtnTxt").textContent = on?"Loading…":"Fetch Campaigns";
+    document.getElementById("totalBtnSpin").classList.toggle("hidden",!on);
+  }
+
+  function showTotalStatus(msg, type, isHtml) {
+    var el = document.getElementById("totalStatusMsg");
     if(isHtml) el.innerHTML=msg; else el.textContent=msg;
     el.className="status-bar "+(type==="error"?"status-error":type==="success"?"status-success":"status-info");
     el.classList.remove("hidden");
