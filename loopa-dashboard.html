@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loopa Campaign Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a1a; }
+
+  /* Trade Me palette */
+  :root {
+    --tm-red:    #e7001d;
+    --tm-navy:   #1a1f36;
+    --tm-yellow: #f5c518;
+    --tm-gray:   #f5f5f5;
+    --tm-border: #e0e0e0;
+    --tm-text:   #333;
+    --tm-muted:  #666;
+  }
+
+  .tm-header { background: #fff; border-bottom: 3px solid var(--tm-red); }
+  .tm-logo-bar { background: var(--tm-navy); }
+
+  /* Section headers */
+  .section-hd {
+    background: #fff;
+    border-left: 4px solid var(--tm-red);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--tm-border);
+  }
+  .section-hd h2 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--tm-navy); }
+
+  .section-wrap { background: #fff; border: 1px solid var(--tm-border); border-radius: 4px; overflow: hidden; margin-bottom: 16px; }
+
+  /* KPI cards */
+  .kpi-card { background: #fff; border: 1px solid var(--tm-border); border-radius: 4px; padding: 16px 20px; border-top: 3px solid var(--tm-red); }
+  .kpi-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--tm-muted); margin-bottom: 4px; }
+  .kpi-val { font-size: 1.6rem; font-weight: 800; color: var(--tm-navy); }
+
+  /* Input / button */
+  .tm-input { border: 1px solid #ccc; border-radius: 3px; padding: 9px 12px; font-size: 0.9rem; width: 100%; outline: none; transition: border 0.15s; }
+  .tm-input:focus { border-color: var(--tm-red); box-shadow: 0 0 0 2px rgba(231,0,29,0.1); }
+  .tm-btn { background: var(--tm-yellow); color: var(--tm-navy); font-weight: 800; font-size: 0.9rem; padding: 9px 24px; border-radius: 3px; border: none; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+  .tm-btn:hover { background: #e0b200; }
+  .tm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  thead tr { background: #f0f0f0; }
+  thead th { padding: 10px 14px; text-align: left; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--tm-muted); border-bottom: 2px solid var(--tm-border); white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid #f0f0f0; }
+  tbody tr:hover { background: #fafafa; }
+  tbody td { padding: 10px 14px; color: var(--tm-text); }
+  .ch-name { font-weight: 700; color: var(--tm-navy); text-transform: uppercase; font-size: 0.75rem; }
+
+  /* Status badges */
+  .badge { font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge-active    { background: #e6f9ee; color: #1a7a3c; }
+  .badge-completed { background: #f0f0f0; color: #555; }
+  .badge-paused    { background: #fff8e1; color: #a07000; }
+  .badge-pending   { background: #e8f0fe; color: #1a5db5; }
+
+  /* Targeting chips */
+  .chip { display: inline-block; background: #f0f0f0; border: 1px solid #ddd; border-radius: 2px; padding: 3px 10px; font-size: 0.75rem; font-weight: 600; color: var(--tm-navy); margin: 2px; }
+  .chip-loc { background: #fff3f3; border-color: #ffc0c0; color: #b00; }
+
+  /* Detail grid cards */
+  .detail-card { background: #fafafa; border: 1px solid var(--tm-border); border-radius: 3px; padding: 12px 14px; }
+  .detail-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--tm-muted); margin-bottom: 3px; }
+  .detail-val { font-size: 0.85rem; font-weight: 600; color: var(--tm-navy); }
+
+  /* Collapse */
+  .section-body { overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s ease; }
+  .section-body.collapsed { max-height: 0 !important; opacity: 0; }
+  .chevron { transition: transform 0.3s; }
+  .chevron.collapsed { transform: rotate(-90deg); }
+
+  /* Spinner */
+  .spinner { border: 2px solid #e0e0e0; border-top: 2px solid var(--tm-red); border-radius: 50%; width: 18px; height: 18px; animation: spin 0.7s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Status bar */
+  .status-bar { font-size: 0.82rem; font-weight: 600; padding: 10px 14px; border-radius: 3px; margin-top: 10px; }
+  .status-info    { background: #e8f0fe; color: #1a5db5; }
+  .status-success { background: #e6f9ee; color: #1a7a3c; }
+  .status-error   { background: #fdecea; color: #b00; }
+
+  /* Preview links */
+  .preview-link { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--tm-border); border-radius: 3px; font-size: 0.8rem; margin-bottom: 6px; }
+  .preview-link a { color: var(--tm-red); text-decoration: underline; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .debug-json { font-family: monospace; font-size: 0.7rem; background: #f8f8f8; border: 1px solid #e0e0e0; padding: 12px; border-radius: 3px; white-space: pre-wrap; max-height: 200px; overflow-y: auto; margin-top: 8px; }
+
+  .chart-wrap { position: relative; height: 340px; }
+  .pie-wrap   { position: relative; height: 260px; }
+
+  /* Proxy notice */
+  .proxy-notice { background: #fff8e1; border: 1px solid #f5c518; border-left: 4px solid #f5c518; border-radius: 3px; padding: 12px 16px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="tm-logo-bar px-6 py-2 flex items-center gap-3">
+  <svg width="110" height="22" viewBox="0 0 110 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <text x="0" y="17" font-family="system-ui,sans-serif" font-weight="800" font-size="16" fill="#fff">trade</text>
+    <text x="44" y="17" font-family="system-ui,sans-serif" font-weight="800" font-size="16" fill="#f5c518">me</text>
+    <text x="66" y="17" font-family="system-ui,sans-serif" font-weight="600" font-size="11" fill="#aab" letter-spacing="0.5">property</text>
+  </svg>
+  <a href="https://lookerstudio.google.com/u/0/reporting/a4250bb6-7d8c-4edc-8283-8137d3a13cc4/page/p_ews5av5d9c" target="_blank" class="text-gray-400 hover:text-yellow-400 text-xs ml-4 transition-colors">Campaign Analytics · Powered by Loopa ↗</a>
+</div>
+
+<div class="max-w-6xl mx-auto px-4 py-6">
+
+  <!-- Page title -->
+  <div class="mb-5">
+    <h1 class="text-xl font-800 text-gray-900" style="font-weight:800;">Campaign Dashboard</h1>
+    <p class="text-sm text-gray-500 mt-0.5">View order statistics, targeting and daily performance</p>
+  </div>
+
+  <!-- Proxy notice -->
+  <div class="proxy-notice flex flex-col sm:flex-row sm:items-center gap-3">
+    <div class="flex-grow">
+      <p class="font-bold text-sm" style="color:#7a5800;">⚠ Step 1 — Activate CORS Proxy</p>
+      <p class="text-sm mt-0.5" style="color:#7a5800;">You must enable cors-anywhere once per browser session before fetching data.</p>
+    </div>
+    <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank"
+       class="shrink-0 inline-block px-4 py-2 text-sm font-bold rounded-sm text-white"
+       style="background:var(--tm-navy);">↗ Activate Proxy</a>
+  </div>
+
+  <!-- Search bar -->
+  <div class="section-wrap mb-5">
+    <div class="section-hd" style="cursor:default;">
+      <h2>Step 2 — Enter Order ID</h2>
+    </div>
+    <div class="p-4 flex flex-col sm:flex-row gap-3 items-end">
+      <div class="flex-grow">
+        <label class="block text-xs font-700 text-gray-500 uppercase tracking-wider mb-1" style="font-weight:700;">Order ID</label>
+        <input id="orderIdInput" type="text" value="5752446338_219484" placeholder="e.g. 5752446338_219484" class="tm-input">
+      </div>
+      <button id="fetchBtn"       class="tm-btn flex items-center gap-2">
+        <span id="btnTxt">Fetch Campaign</span>
+        <span id="btnSpin" class="hidden"><div class="spinner" style="border-top-color:var(--tm-navy);width:14px;height:14px;border-width:2px;"></div></span>
+      </button>
+    </div>
+    <div id="statusMsg" class="hidden mx-4 mb-4 status-bar"></div>
+  </div>
+
+  <!-- KPI row -->
+  <div id="kpiRow" class="hidden grid grid-cols-2 md:grid-cols-4 gap-3 mb-5"></div>
+
+  <!-- Campaign Details -->
+  <div id="orderSection" class="section-wrap hidden">
+    <div class="section-hd" onclick="toggleSection('orderGrid',this)">
+      <h2>Campaign Details</h2>
+      <div class="flex items-center gap-3">
+        <span id="orderStatus" class="badge"></span>
+        <svg class="chevron w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+    </div>
+    <div id="orderGrid" class="section-body p-4 grid grid-cols-2 md:grid-cols-4 gap-3" style="max-height:800px;"></div>
+  </div>
+
+  <!-- Channel Stats -->
+  <div id="channelSection" class="section-wrap hidden">
+    <div class="section-hd" onclick="toggleSection('channelContainer',this)">
+      <div>
+        <h2>Order Channel Statistics</h2>
+        <div id="channelDateRange" class="hidden text-xs text-gray-500 mt-0.5 font-normal" style="font-size:0.72rem;">
+          Range: <span id="startDate" class="font-semibold"></span> – <span id="endDate" class="font-semibold"></span>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="channelLoader" class="hidden"><div class="spinner"></div></div>
+        <svg class="chevron w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+    </div>
+    <div id="channelContainer" class="section-body overflow-x-auto" style="max-height:800px;">
+      <p class="p-6 text-sm text-gray-400 italic text-center">Enter an Order ID above.</p>
+    </div>
+  </div>
+
+  <!-- Channel Pie Charts -->
+  <div id="pieSection" class="section-wrap hidden">
+    <div class="section-hd" onclick="toggleSection('pieBody',this)">
+      <h2>Channel Distribution</h2>
+      <svg class="chevron w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+    </div>
+    <div id="pieBody" class="section-body grid grid-cols-1 md:grid-cols-2 divide-x divide-gray-100" style="max-height:440px;">
+      <div class="p-5">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest text-center mb-3">Impressions by Channel</p>
+        <div class="pie-wrap"><canvas id="impPie"></canvas></div>
+      </div>
+      <div class="p-5">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest text-center mb-3">Clicks by Channel</p>
+        <div class="pie-wrap"><canvas id="clickPie"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily Stats Table -->
+  <div id="dailySection" class="section-wrap hidden">
+    <div class="section-hd" onclick="toggleSection('dailyContainer',this)">
+      <h2>Daily Statistics</h2>
+      <div class="flex items-center gap-3">
+        <div id="dailyLoader" class="hidden"><div class="spinner"></div></div>
+        <svg class="chevron w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+    </div>
+    <div id="dailyContainer" class="section-body overflow-x-auto" style="max-height:1800px;">
+      <p class="p-6 text-sm text-gray-400 italic text-center">Enter an Order ID above.</p>
+    </div>
+  </div>
+
+  <!-- Daily Chart -->
+  <div id="chartSection" class="section-wrap hidden">
+    <div class="section-hd" onclick="toggleSection('chartBody',this)">
+      <h2>Daily Performance Chart</h2>
+      <svg class="chevron w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+    </div>
+    <div id="chartBody" class="section-body p-5" style="max-height:440px;">
+      <div class="chart-wrap"><canvas id="dailyChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Targeting -->
+  <div id="targetingSection" class="section-wrap hidden">
+    <div class="section-hd" onclick="toggleSection('targetingBody',this)">
+      <h2>Targeting</h2>
+      <svg class="chevron w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+    </div>
+    <div id="targetingBody" class="section-body p-4 space-y-4" style="max-height:1000px;"></div>
+  </div>
+
+  <!-- Ad Previews -->
+  <div id="previewSection" class="section-wrap hidden">
+    <div class="section-hd" onclick="toggleSection('previewBody',this)">
+      <h2>Ad Preview Links</h2>
+      <svg class="chevron w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+    </div>
+    <div id="previewBody" class="section-body p-4 space-y-3" style="max-height:1000px;"></div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+(function () {
+  "use strict";
+  var API_KEY = "aFVZq49ZJ24NXA6NxFma";
+  var PUB_ID  = "5e2a68873bc3fa1b7c34ba79";
+  var PROXY   = "https://cors-anywhere.herokuapp.com/";
+  var BASE    = "https://api.loopa.net.au";
+  var COLORS  = ["#e7001d","#1a1f36","#f5c518","#2563eb","#059669","#9333ea","#ea580c","#0891b2","#65a30d","#db2777"];
+  var charts  = {};
+
+  document.getElementById("orderIdInput").addEventListener("keydown", function(e){ if(e.key==="Enter") fetchAll(); });
+  document.getElementById("fetchBtn").addEventListener("click", fetchAll);
+
+  window.toggleSection = function(bodyId, hdr) {
+    var b = document.getElementById(bodyId);
+    var c = hdr.querySelector(".chevron");
+    var collapsed = b.classList.toggle("collapsed");
+    if(c) c.classList.toggle("collapsed", collapsed);
+  };
+
+  function callApi(path) {
+    return fetch(PROXY + BASE + path, { headers:{ "Authorization": API_KEY, "Accept":"application/json" } })
+      .then(function(r){ if(r.status===403) throw new Error("PROXY_DENIED"); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); });
+  }
+
+  function fmtDate(d, short) {
+    if(!d) return "—";
+    try {
+      var dt = new Date(d);
+      if(short) return dt.toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit"});
+      return dt.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+    } catch(e){ return d; }
+  }
+
+  function fetchAll() {
+    var id = document.getElementById("orderIdInput").value.trim();
+    if(!id){ showStatus("Please enter an Order ID.","error"); return; }
+    setBusy(true); clearUI(); showStatus("Fetching data…","info");
+
+    Promise.all([
+      callApi("/order/"+PUB_ID+"/"+id),
+      callApi("/stats/"+PUB_ID+"/order/"+id),
+      callApi("/stats/"+PUB_ID+"/orderChannel/"+id),
+      callApi("/stats/"+PUB_ID+"/orderDaily/"+id)
+    ]).then(function(res){
+      var order   = (res[0]&&res[0].Data) ? res[0].Data : {};
+      var stats   = (res[1]&&res[1].Data) ? res[1].Data : {};
+      var chanRes = res[2];
+      var dayRes  = res[3];
+
+      // Product ID is the numeric part before '_' in the order ID
+      var rawId = document.getElementById("orderIdInput").value.trim();
+      var productId = order.ProductId || (rawId.indexOf("_") !== -1 ? rawId.split("_")[0] : rawId);
+      var pp = productId
+        ? callApi("/product/"+PUB_ID+"/"+productId).then(function(r){ return r&&r.Data?r.Data:null; }).catch(function(){ return null; })
+        : Promise.resolve(null);
+
+      return pp.then(function(prod){
+        renderOrderCard(order, stats, prod);
+        renderTargeting(order);
+        renderPreviews(order);
+        renderKPIs(chanRes);
+        renderChannelTable(chanRes);
+        renderPies(chanRes);
+        renderDailyTable(dayRes);
+        renderDailyChart(dayRes);
+        collapseAllExceptOrder();
+        showStatus("Data loaded successfully.","success");
+      });
+    }).catch(function(err){
+      if(err.message==="PROXY_DENIED")
+        showStatus("Proxy access required. <a href='https://cors-anywhere.herokuapp.com/corsdemo' target='_blank' class='underline font-bold'>Click here to activate</a>, then retry.","error",true);
+      else showStatus("Error: "+err.message,"error");
+    }).then(function(){ setBusy(false); });
+  }
+
+  function collapseAllExceptOrder() {
+    var toReveal = ["channelSection","dailySection"];
+    toReveal.forEach(function(id){ document.getElementById(id).classList.remove("hidden"); });
+    var toCollapse = ["targetingBody","previewBody","channelContainer","pieBody","dailyContainer","chartBody"];
+    toCollapse.forEach(function(id) {
+      var body = document.getElementById(id);
+      if (!body) return;
+      body.classList.add("collapsed");
+      // flip the chevron in the parent section header
+      var hdr = body.closest(".section-wrap");
+      if (hdr) {
+        var chevron = hdr.querySelector(".section-hd .chevron");
+        if (chevron) chevron.classList.add("collapsed");
+      }
+    });
+  }
+
+  /* ─── Campaign Card ─── */
+  function renderOrderCard(order, stats, prod) {
+    var d = prod||{}, s = stats||{};
+    var status = order.Status||"—";
+    var badgeClass = {Active:"badge-active",Completed:"badge-completed",Paused:"badge-paused",Pending:"badge-pending"}[status]||"badge-completed";
+    var badge = document.getElementById("orderStatus");
+    badge.className = "badge "+badgeClass;
+    badge.textContent = status;
+
+    var cost = s.Cost!=null ? "$"+parseFloat(s.Cost).toFixed(2) : "—";
+    var pct  = s.Percentage!=null ? parseFloat(s.Percentage).toFixed(0)+"%" : "—";
+
+    var fields = [
+      {l:"Order ID",    v: order.Id||document.getElementById("orderIdInput").value},
+      {l:"Product ID",  v: order.ProductId||"—"},
+      {l:"Title",       v: d.Title||"—",     wide:true},
+      {l:"Item URL",    v: d.ItemUrl||null,  wide:true, url:true},
+      {l:"Start Date",  v: fmtDate(order.StartDate)},
+      {l:"End Date",    v: fmtDate(order.EndDate)},
+      {l:"Package",     v: order.PackageId||"—"},
+      {l:"Customer",    v: order.Customer||"—"},
+      {l:"Amount Spent",v: cost, highlight:true},
+      {l:"% of Budget", v: pct,  highlight:true},
+      {l:"Address", v: [d.CustomField2, d.CustomField3].filter(Boolean).join(", ")||"—", wide:true}
+    ];
+
+    var html = "";
+    if(d.MainImage){
+      html += "<div class='col-span-2 md:col-span-4 mb-1'><img src='"+d.MainImage+"' class='w-full h-40 object-cover rounded-sm' onerror=\"this.style.display='none'\"></div>";
+    }
+    for(var i=0;i<fields.length;i++){
+      var f = fields[i];
+      var w = f.wide ? "col-span-2" : "";
+      var bg = f.highlight ? "border-l-2" : "";
+      var borderCol = f.highlight ? "border-red-500" : "";
+      var inner = (f.url&&f.v)
+        ? "<a href='"+f.v+"' target='_blank' class='text-xs font-semibold break-all' style='color:var(--tm-red)'>"+f.v+"</a>"
+        : "<p class='text-sm font-bold truncate' style='color:var(--tm-navy)'>"+( f.v||"—")+"</p>";
+      html += "<div class='detail-card "+w+" "+bg+" "+borderCol+"'><p class='detail-label'>"+f.l+"</p>"+inner+"</div>";
+    }
+    document.getElementById("orderGrid").innerHTML = html;
+    document.getElementById("orderSection").classList.remove("hidden");
+  }
+
+  /* ─── Targeting ─── */
+  function renderTargeting(order) {
+    var sec = document.getElementById("targetingSection");
+    var body = document.getElementById("targetingBody");
+    var t = order&&order.Targeting ? order.Targeting : null;
+    if(!t){ sec.classList.add("hidden"); return; }
+
+    var html = "";
+    if(t.Locations&&t.Locations.length>0){
+      html += "<div><p class='text-xs font-bold text-gray-400 uppercase tracking-wider mb-2'>Locations</p><div class='flex flex-wrap gap-2'>";
+      for(var i=0;i<t.Locations.length;i++){
+        var loc=t.Locations[i], parts=[];
+        if(loc.StreetAddress) parts.push(loc.StreetAddress);
+        if(loc.City) parts.push(loc.City);
+        if(loc.PostCode) parts.push(loc.PostCode);
+        if(loc.State) parts.push(loc.State);
+        var mapsUrl = "https://www.google.com/maps?q="+encodeURIComponent(parts.join(", "));
+        html += "<a href='"+mapsUrl+"' target='_blank' class='chip chip-loc'>📍 "+parts.join(", ")+"</a>";
+      }
+      html += "</div></div>";
+    }
+    if(t.Radius){
+      html += "<div><p class='text-xs font-bold text-gray-400 uppercase tracking-wider mb-2'>Radius</p><span class='chip'>"+t.Radius+" km</span></div>";
+    }
+    if(t.Gender||t.AgeMinimum||t.AgeMaximum){
+      html += "<div><p class='text-xs font-bold text-gray-400 uppercase tracking-wider mb-2'>Demographics</p><div class='flex gap-2'>";
+      if(t.Gender) html += "<span class='chip'>"+t.Gender+"</span>";
+      if(t.AgeMinimum||t.AgeMaximum) html += "<span class='chip'>Age: "+(t.AgeMinimum||"—")+" – "+(t.AgeMaximum||"—")+"</span>";
+      html += "</div></div>";
+    }
+    if(t.SearchKeywords&&t.SearchKeywords.length>0){
+      html += "<div><p class='text-xs font-bold text-gray-400 uppercase tracking-wider mb-2'>Keywords</p><div class='flex flex-wrap gap-1'>";
+      for(var k=0;k<t.SearchKeywords.length;k++) html += "<span class='chip'>"+t.SearchKeywords[k]+"</span>";
+      html += "</div></div>";
+    }
+    if(!html) html = "<p class='text-sm text-gray-400 italic'>No targeting details.</p>";
+    body.innerHTML = html;
+    sec.classList.remove("hidden");
+  }
+
+  /* ─── Previews ─── */
+  function renderPreviews(order) {
+    var sec = document.getElementById("previewSection");
+    var body = document.getElementById("previewBody");
+    var p = order&&order.PreviewUrls ? order.PreviewUrls : null;
+    if(!p||Object.keys(p).length===0){ sec.classList.add("hidden"); return; }
+
+    var html="", placements=Object.keys(p);
+    for(var i=0;i<placements.length;i++){
+      var pl=placements[i], urls=p[pl];
+      if(!urls||!urls.length) continue;
+      html += "<div><p class='text-xs font-bold text-gray-400 uppercase tracking-wider mb-2'>"+pl+" <span class='text-gray-300 font-normal'>("+urls.length+")</span></p>";
+      for(var j=0;j<urls.length;j++){
+        html += "<div class='preview-link'><a href='"+urls[j]+"' target='_blank'>"+urls[j]+"</a><span class='text-xs text-gray-400 shrink-0'>Ad "+(j+1)+"</span></div>";
+      }
+      html += "</div>";
+    }
+    if(!html) html = "<p class='text-sm text-gray-400 italic'>No preview URLs.</p>";
+    body.innerHTML = html;
+    sec.classList.remove("hidden");
+  }
+
+  /* ─── KPIs ─── */
+  function renderKPIs(chanRes) {
+    var ch = chanRes&&chanRes.Data&&chanRes.Data.OrderStatChannels ? chanRes.Data.OrderStatChannels : {};
+    var imp=0, clicks=0, cost=0;
+    Object.keys(ch).forEach(function(k){ imp+=ch[k].TotalImpressions||0; clicks+=ch[k].Clicks||0; cost+=parseFloat(ch[k].Cost||0); });
+    var ctr = imp>0 ? (clicks/imp*100).toFixed(2) : "0.00";
+
+    var kpis=[
+      {l:"Total Impressions", v:imp.toLocaleString()},
+      {l:"Total Clicks",      v:clicks.toLocaleString()},
+      {l:"CTR",               v:ctr+"%"},
+    ];
+    var html="";
+    kpis.forEach(function(k){ html+="<div class='kpi-card'><p class='kpi-label'>"+k.l+"</p><p class='kpi-val'>"+k.v+"</p></div>"; });
+    var row = document.getElementById("kpiRow");
+    row.innerHTML = html;
+    row.classList.remove("hidden");
+  }
+
+  /* ─── Channel Table ─── */
+  function renderChannelTable(res) {
+    var ch = res&&res.Data&&res.Data.OrderStatChannels ? res.Data.OrderStatChannels : null;
+    var el = document.getElementById("channelContainer");
+
+    if(res&&res.Data&&(res.Data.StartDate||res.Data.EndDate)){
+      document.getElementById("startDate").textContent = fmtDate(res.Data.StartDate);
+      document.getElementById("endDate").textContent   = fmtDate(res.Data.EndDate);
+      document.getElementById("channelDateRange").classList.remove("hidden");
+    }
+    if(!ch||Object.keys(ch).length===0){ el.innerHTML="<p class='p-6 text-center text-sm text-gray-400'>No channel data found.</p>"; return; }
+
+    var flds=["TotalImpressions","Clicks","TotalConversions","SocialEngagement","CTR","CTRPercentage","Cost","Percentage","VideoViews","PartialVideoViews"];
+    var html="<table><thead><tr><th>Channel</th>";
+    flds.forEach(function(f){ html+="<th>"+f.replace(/([A-Z])/g," $1").trim()+"</th>"; });
+    html+="</tr></thead><tbody>";
+    Object.keys(ch).forEach(function(k){
+      var row=ch[k];
+      html+="<tr><td class='ch-name'>"+k+"</td>";
+      flds.forEach(function(f){
+        var v=row[f];
+        var disp=(v==null)?"—":(f==="CTRPercentage")?parseFloat(v).toFixed(2)+"%":(f==="Cost")?"$"+parseFloat(v).toFixed(2):v;
+        html+="<td>"+disp+"</td>";
+      });
+      html+="</tr>";
+    });
+    html+="</tbody></table>";
+    el.innerHTML=html;
+    addRawJson(el,res);
+  }
+
+  /* ─── Pie Charts ─── */
+  function renderPies(res) {
+    var ch=res&&res.Data&&res.Data.OrderStatChannels?res.Data.OrderStatChannels:null;
+    var sec=document.getElementById("pieSection");
+    if(!ch||Object.keys(ch).length===0){ sec.classList.add("hidden"); return; }
+    sec.classList.remove("hidden");
+    var keys=Object.keys(ch);
+    var labels=keys.map(function(k){ return k.toUpperCase(); });
+    var impData=keys.map(function(k){ return ch[k].TotalImpressions||0; });
+    var clickData=keys.map(function(k){ return ch[k].Clicks||0; });
+    if(charts.impPie)   charts.impPie.destroy();
+    if(charts.clickPie) charts.clickPie.destroy();
+    var opts={responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"},tooltip:{callbacks:{label:function(ctx){ return ctx.label+": "+ctx.raw.toLocaleString(); }}}}};
+    charts.impPie   = new Chart(document.getElementById("impPie"),   {type:"pie",data:{labels:labels,datasets:[{data:impData,  backgroundColor:COLORS,hoverOffset:8}]},options:opts});
+    charts.clickPie = new Chart(document.getElementById("clickPie"), {type:"pie",data:{labels:labels,datasets:[{data:clickData,backgroundColor:COLORS,hoverOffset:8}]},options:opts});
+  }
+
+  /* ─── Daily Table ─── */
+  function renderDailyTable(res) {
+    var days=res&&res.Data&&res.Data.OrderStatDays?res.Data.OrderStatDays:null;
+    var el=document.getElementById("dailyContainer");
+    if(!days){ el.innerHTML="<p class='p-6 text-center text-sm text-gray-400'>No daily data found.</p>"; return; }
+    var sorted=Object.keys(days).filter(function(d){ return (days[d].TotalImpressions||0)>0; }).sort(function(a,b){ return new Date(a)-new Date(b); });
+    if(!sorted.length){ el.innerHTML="<p class='p-6 text-center text-sm text-gray-400'>No days with impressions.</p>"; return; }
+    var flds=["TotalImpressions","Clicks","TotalConversions","SocialEngagement","CTR","CTRPercentage","VideoViews","PartialVideoViews"];
+    var html="<table><thead><tr><th>Date</th>";
+    flds.forEach(function(f){ html+="<th>"+f.replace(/([A-Z])/g," $1").trim()+"</th>"; });
+    html+="</tr></thead><tbody>";
+    sorted.forEach(function(dk){
+      var row=days[dk];
+      html+="<tr><td class='font-semibold' style='color:var(--tm-navy)'>"+fmtDate(dk,true)+"</td>";
+      flds.forEach(function(f){
+        var v=row[f];
+        var disp=(v==null)?"—":(f==="CTRPercentage")?parseFloat(v).toFixed(2)+"%":v;
+        html+="<td>"+disp+"</td>";
+      });
+      html+="</tr>";
+    });
+    html+="</tbody></table>";
+    el.innerHTML=html;
+    addRawJson(el,res);
+  }
+
+  /* ─── Daily Chart ─── */
+  function renderDailyChart(res) {
+    var days=res&&res.Data&&res.Data.OrderStatDays?res.Data.OrderStatDays:null;
+    var sec=document.getElementById("chartSection");
+    if(!days){ sec.classList.add("hidden"); return; }
+    var sorted=Object.keys(days).filter(function(d){ return (days[d].TotalImpressions||0)>0; }).sort(function(a,b){ return new Date(a)-new Date(b); });
+    if(!sorted.length){ sec.classList.add("hidden"); return; }
+    sec.classList.remove("hidden");
+    if(charts.daily) charts.daily.destroy();
+    charts.daily = new Chart(document.getElementById("dailyChart"),{
+      type:"bar",
+      data:{
+        labels:sorted.map(function(d){ return fmtDate(d,true); }),
+        datasets:[
+          {label:"Total Impressions",data:sorted.map(function(d){ return days[d].TotalImpressions||0; }),backgroundColor:"rgba(231,0,29,0.15)",borderColor:"#e7001d",borderWidth:2,yAxisID:"y"},
+          {label:"Clicks",           data:sorted.map(function(d){ return days[d].Clicks||0; }),          backgroundColor:"rgba(26,31,54,0.7)",  borderColor:"#1a1f36",borderWidth:1,yAxisID:"y1"}
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        interaction:{mode:"index",intersect:false},
+        scales:{
+          x:{grid:{display:false},ticks:{font:{size:11}}},
+          y: {type:"linear",position:"left", title:{display:true,text:"Impressions",font:{size:11}},beginAtZero:true,grid:{color:"#f0f0f0"}},
+          y1:{type:"linear",position:"right",title:{display:true,text:"Clicks",     font:{size:11}},beginAtZero:true,grid:{drawOnChartArea:false}}
+        },
+        plugins:{
+          legend:{position:"top",labels:{font:{size:12},boxWidth:12}},
+          tooltip:{callbacks:{label:function(ctx){ return ctx.dataset.label+": "+ctx.parsed.y.toLocaleString(); }}}
+        }
+      }
+    });
+  }
+
+  /* ─── helpers ─── */
+  function addRawJson(container, data) {
+    var det=document.createElement("details");
+    det.className="px-4 mb-4 mt-1";
+    det.innerHTML="<summary class='text-xs text-gray-400 cursor-pointer hover:text-gray-600 uppercase font-bold tracking-wider'>View Raw JSON</summary><div class='debug-json'>"+JSON.stringify(data,null,2)+"</div>";
+    container.appendChild(det);
+  }
+
+  function clearUI() {
+    ["channelContainer","dailyContainer"].forEach(function(id){
+      var el=document.getElementById(id);
+      el.innerHTML="<p class='p-6 text-sm text-gray-400 italic text-center'>Loading…</p>";
+    });
+    ["channelDateRange","chartSection","pieSection","orderSection","targetingSection","previewSection","kpiRow","channelSection","dailySection"].forEach(function(id){
+      document.getElementById(id).classList.add("hidden");
+    });
+  }
+
+  function setBusy(on) {
+    document.getElementById("fetchBtn").disabled=on;
+    document.getElementById("fetchBtn").classList.toggle("opacity-60",on);
+    document.getElementById("btnTxt").textContent=on?"Loading…":"Fetch Campaign";
+    document.getElementById("btnSpin").classList.toggle("hidden",!on);
+    document.getElementById("channelLoader").classList.toggle("hidden",!on);
+    document.getElementById("dailyLoader").classList.toggle("hidden",!on);
+  }
+
+  function showStatus(msg, type, isHtml) {
+    var el=document.getElementById("statusMsg");
+    if(isHtml) el.innerHTML=msg; else el.textContent=msg;
+    el.className="status-bar "+(type==="error"?"status-error":type==="success"?"status-success":"status-info");
+    el.classList.remove("hidden");
+    if(type!=="error") setTimeout(function(){ el.classList.add("hidden"); },4000);
+  }
+
+}());
+</script>
+</body>
+</html>
