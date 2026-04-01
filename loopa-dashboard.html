@@ -115,8 +115,7 @@
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
-  /* Proxy notice */
-  .proxy-notice { background: #fffbe6; border: 1px solid var(--tm-kowhai-dark); border-left: 4px solid var(--tm-kowhai-dark); border-radius: 4px; padding: 12px 16px; margin-bottom: 16px; }
+
 </style>
 </head>
 <body>
@@ -145,21 +144,10 @@
   <!-- Single Campaign panel -->
   <div id="panel-single" class="tab-panel active">
 
-  <!-- Proxy notice -->
-  <div class="proxy-notice flex flex-col sm:flex-row sm:items-center gap-3">
-    <div class="flex-grow">
-      <p class="font-bold text-sm" style="color:#7a5800;">⚠ Step 1 — Activate CORS Proxy</p>
-      <p class="text-sm mt-0.5" style="color:#7a5800;">You must enable cors-anywhere once per browser session before fetching data.</p>
-    </div>
-    <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank"
-       class="shrink-0 inline-block px-4 py-2 text-sm font-bold rounded-sm text-white"
-       style="background:var(--tm-charcoal);">↗ Activate Proxy</a>
-  </div>
-
   <!-- Search bar -->
   <div class="section-wrap mb-5">
     <div class="section-hd" style="cursor:default;">
-      <h2>Step 2 — Enter Order ID</h2>
+      <h2>Enter Order ID</h2>
     </div>
     <div class="p-4 flex flex-col sm:flex-row gap-3 items-end">
       <div class="flex-grow">
@@ -274,17 +262,6 @@
   <!-- Total Campaigns panel -->
   <div id="panel-total" class="tab-panel">
 
-    <!-- Proxy notice (duplicated for this tab) -->
-    <div class="proxy-notice flex flex-col sm:flex-row sm:items-center gap-3">
-      <div class="flex-grow">
-        <p class="font-bold text-sm" style="color:#7a5800;">⚠ Activate CORS Proxy first</p>
-        <p class="text-sm mt-0.5" style="color:#7a5800;">Enable cors-anywhere once per browser session before fetching data.</p>
-      </div>
-      <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank"
-         class="shrink-0 inline-block px-4 py-2 text-sm font-bold rounded-sm text-white"
-         style="background:var(--tm-charcoal);">↗ Activate Proxy</a>
-    </div>
-
     <!-- Date range picker -->
     <div class="section-wrap mb-5">
       <div class="section-hd" style="cursor:default;">
@@ -336,8 +313,7 @@
   "use strict";
   var API_KEY = "aFVZq49ZJ24NXA6NxFma";
   var PUB_ID  = "5e2a68873bc3fa1b7c34ba79";
-  var PROXY   = "https://cors-anywhere.herokuapp.com/";
-  var BASE    = "https://api.loopa.net.au";
+  var PROXY   = "https://fancy-bread-b60b.glen-arvidson-782.workers.dev";
   var COLORS  = ["#4854D3","#FFEB33","#0916A6","#2563eb","#059669","#9333ea","#ea580c","#0891b2","#65a30d","#db2777"];
   var charts  = {};
 
@@ -359,8 +335,8 @@
   };
 
   function callApi(path) {
-    return fetch(PROXY + BASE + path, { headers:{ "Authorization": API_KEY, "Accept":"application/json", "X-Requested-With": "XMLHttpRequest" } })
-      .then(function(r){ if(r.status===403) throw new Error("PROXY_DENIED"); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); });
+    return fetch(PROXY + path, { headers:{ "Authorization": API_KEY, "Accept":"application/json" } })
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); });
   }
 
   function fmtDate(d, short) {
@@ -408,9 +384,7 @@
         showStatus("Data loaded successfully.","success");
       });
     }).catch(function(err){
-      if(err.message==="PROXY_DENIED")
-        showStatus("Proxy access required. <a href='https://cors-anywhere.herokuapp.com/corsdemo' target='_blank' class='underline font-bold'>Click here to activate</a>, then retry.","error",true);
-      else showStatus("Error: "+err.message,"error");
+      showStatus("Error: "+err.message,"error");
     }).then(function(){ setBusy(false); });
   }
 
@@ -757,9 +731,7 @@
 
       showTotalStatus("Loaded "+totalAllOrders.length+" campaigns.","success");
     }).catch(function(err) {
-      if(err.message==="PROXY_DENIED")
-        showTotalStatus("Proxy access required. <a href='https://cors-anywhere.herokuapp.com/corsdemo' target='_blank' class='underline font-bold'>Activate here</a>, then retry.","error",true);
-      else showTotalStatus("Error: "+err.message,"error");
+      showTotalStatus("Error: "+err.message,"error");
     }).then(function(){ setTotalBusy(false); });
   }
 
