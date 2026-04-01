@@ -706,6 +706,18 @@
 
     totalCurrentPage = page;
     setTotalBusy(true);
+
+    // On a fresh search, clear previous results immediately
+    if(page === 1) {
+      totalAllOrders = [];
+      document.getElementById("totalKpiRow").classList.add("hidden");
+      document.getElementById("totalKpiRow").innerHTML = "";
+      document.getElementById("totalTableSection").classList.add("hidden");
+      document.getElementById("totalTableContainer").innerHTML = "<p class='p-6 text-sm text-gray-400 italic text-center'>Loading…</p>";
+      document.getElementById("totalPagination").classList.add("hidden");
+      document.getElementById("totalPageInfo").textContent = "";
+    }
+
     showTotalStatus("Fetching page "+page+"…","info");
 
     var path = "/stats/"+PUB_ID+"/orders?page="+page;
