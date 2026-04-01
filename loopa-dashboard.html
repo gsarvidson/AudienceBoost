@@ -359,7 +359,7 @@
   };
 
   function callApi(path) {
-    return fetch(PROXY + BASE + path, { headers:{ "Authorization": API_KEY, "Accept":"application/json" } })
+    return fetch(PROXY + BASE + path, { headers:{ "Authorization": API_KEY, "Accept":"application/json", "X-Requested-With": "XMLHttpRequest" } })
       .then(function(r){ if(r.status===403) throw new Error("PROXY_DENIED"); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); });
   }
 
@@ -831,7 +831,7 @@
         else if(c.k==="Cost") { disp="$"+parseFloat(v).toFixed(2); }
         else if(c.k==="CTRPercentage") { disp=parseFloat(v||0).toFixed(2)+"%"; }
         else if(c.k==="Percentage") { disp=parseFloat(v||0).toFixed(0)+"%"; }
-        else if(c.k==="PublisherOrderId") { disp="<span style='font-weight:700;color:var(--tm-blurple-dark);font-size:0.75rem;'>"+v+"</span>"; }
+        else if(c.k==="PublisherOrderId") { disp="<a href='#' onclick='loadSingleCampaign(\""+v+"\");return false;' style='font-weight:700;color:var(--tm-blurple);font-size:0.75rem;text-decoration:underline;'>"+v+"</a>"; }
         else { disp=v.toLocaleString?v.toLocaleString():v; }
         html += "<td>"+disp+"</td>";
       });
@@ -840,6 +840,12 @@
     html += "</tbody></table>";
     el.innerHTML = html;
   }
+
+  window.loadSingleCampaign = function(orderId) {
+    switchTab("single");
+    document.getElementById("orderIdInput").value = orderId;
+    fetchAll();
+  };
 
   window.sortTotalTable = function(col) {
     if(totalSortCol===col) totalSortAsc=!totalSortAsc;
